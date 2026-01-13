@@ -1,0 +1,23 @@
+/* Bible Hover Plugin Styles */
+.bible-hover-popover {
+    padding: 10px;
+    max-width: 400px;
+}
+
+/* Bible Link Styling */
+/* Target the wrapper and DEEPLY target the inner elements that Obsidian usually styles */
+.bible-link,
+.bible-link a,
+.bible-link .cm-underline,
+.bible-link .is-unresolved,
+.cm-hmd-internal-link .bible-link a,
+.cm-hmd-internal-link .bible-link .cm-underline {
+    color: var(--bible-link-color) !important;
+    text-decoration-color: var(--bible-link-color) !important;
+}
+
+.bible-link:hover,
+.bible-link a:hover,
+.bible-link .cm-underline:hover {
+    color: #ff0000 !important;
+}

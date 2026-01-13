@@ -1,0 +1,25 @@
+# Bible Hover Obsidian Plugin
+Hover over bible verse links to display the verse in a popover. Click on the link to navigate to the verse.
+Add multiple versions and quickly switch between versions
+
+
+> Note: This project is heavily vibe-coded 
+
+## Setup
+0. If you have your bible in Zefania XML format, you can convert to md using [this python program](https://gist.github.com/npc203/565e32a68dcf190976d621b098614486).
+1. Create bible markdowns in the following format.
+```markdown
+# Genesis
+## Chapter 1
+1. In the beginning God created the heavens and the earth.
+2. Now the earth was formless and empty, darkness was over the surface of the deep, and the Spirit of God was hovering over the
+...
+...
+
+## Chapter 2
+1. Thus the heavens and the earth were completed in all their vast array.
+2. By the seventh day God had finished the work he had been doing; so on the seventh day he rested from all his work.
+3. And God blessed the sevent....
+```
+2. Place them inside your vault.
+3. Under the bible-hover plugin settings, add your bibles. 
