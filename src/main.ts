@@ -1,6 +1,8 @@
 import { Plugin, MarkdownRenderer, TFile } from 'obsidian';
 import { BibleParser } from './parser';
 import {DEFAULT_SETTINGS, BibleHoverSettings, BibleHoverSettingTab} from "./settings";
+import { bibleObserver } from './editor';
+
 export default class BibleHoverPlugin extends Plugin {
     bibleParsers: Map<string, BibleParser> = new Map();
     currentVersion: string = '';
@@ -20,7 +22,7 @@ export default class BibleHoverPlugin extends Plugin {
 
         this.addSettingTab(new BibleHoverSettingTab(this.app, this));
 
-        // this.registerEditorExtension(bibleObserver);
+        this.registerEditorExtension(bibleObserver);
 
         // Global Event Listener for Hover
         this.registerDomEvent(document, 'mouseover', (evt: MouseEvent) => {
