@@ -1,10 +1,11 @@
 # Bible Hover Obsidian Plugin
-Hover over bible verse links to display the verse in a popover. Click on the link to navigate to the verse.
-Add multiple versions and quickly switch between versions. Works fully offline.
-
-
 > Note: This project is heavily vibe-coded 
 
+Link your bible verses through internal links, Hover over the bible verse links to display the verse in a popover. Click on the link to navigate to the verse.
+Add multiple versions and quickly switch between versions. Works fully offline. 
+
+The bible internal links are case-insensitive.
+![Demo](./demo.gif)
 
 The project follows BYOB (Bring Your Own Bible) approach. 
 If you have your bible in Zefania XML format, you can convert to md using [this python program](https://gist.github.com/npc203/565e32a68dcf190976d621b098614486). Else, follow the below format.

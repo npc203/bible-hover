@@ -3,7 +3,7 @@
     "name": "Bible Hover",
     "version": "1.0.0",
     "minAppVersion": "0.15.0",
-    "description": "Displays Bible verses from bible.md on hover.",
+    "description": "Displays Bible verses from bible markdowns on hover.",
     "author": "npc203",
     "authorUrl": "https://github.com/npc203",
     "isDesktopOnly": false
