@@ -1,4 +1,4 @@
-import { App, Plugin, PluginSettingTab, Setting, MarkdownRenderer, TFile, SuggestModal, Modal } from 'obsidian';
+import { App, PluginSettingTab, Setting, SuggestModal, Modal } from 'obsidian';
 import type BibleHoverPlugin from './main';
 import { BibleParser } from './parser';
 
