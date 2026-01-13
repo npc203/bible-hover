@@ -21,6 +21,7 @@ export class BibleParser {
     static aliases: Map<string, string> = new Map([
         ['gen', 'Genesis'],
         ['exo', 'Exodus'],
+        ['ex', 'Exodus'],
         ['lev', 'Leviticus'],
         ['num', 'Numbers'],
         ['deu', 'Deuteronomy'],
@@ -38,6 +39,7 @@ export class BibleParser {
         ['est', 'Esther'],
         ['job', 'Job'],
         ['psa', 'Psalms'],
+        ['pro', 'Proverbs'],
         ['prov', 'Proverbs'],
         ['ecc', 'Ecclesiastes'],
         ['song', 'Song of Solomon'],
@@ -99,8 +101,9 @@ export class BibleParser {
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
+            if (!line) continue;
             const bookMatch = line.match(/^# (.+)/);
-            if (bookMatch) {
+            if (bookMatch && bookMatch[1]) {
                 const bookName = bookMatch[1].trim();
                 // Store using Lowercase Key
                 const key = bookName.toLowerCase();
@@ -112,7 +115,7 @@ export class BibleParser {
             }
 
             const chapterMatch = line.match(/^## Chapter (\d+)/);
-            if (chapterMatch && currentBook) {
+            if (chapterMatch && chapterMatch[1] && currentBook) {
                 const chapterNum = parseInt(chapterMatch[1]);
                 currentChapter = { number: chapterNum, verses: new Map() };
                 currentBook.chapters.set(chapterNum, currentChapter);
@@ -120,7 +123,7 @@ export class BibleParser {
             }
 
             const verseMatch = line.match(/^(\d+)\. (.+)/);
-            if (verseMatch && currentChapter) {
+            if (verseMatch && verseMatch[1] && verseMatch[2] && currentChapter) {
                 const verseNum = parseInt(verseMatch[1]);
                 const verseText = verseMatch[2].trim();
                 currentChapter.verses.set(verseNum, {
@@ -198,7 +201,7 @@ export class BibleParser {
 
         const parts = cleanRef.match(/(.+?)\s(\d+):(\d+)(?:-(\d+))?/);
 
-        if (!parts) return null;
+        if (!parts || !parts[1] || !parts[2] || !parts[3]) return null;
 
         return {
             bookName: parts[1].trim(),
