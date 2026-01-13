@@ -11,8 +11,6 @@ export default class BibleHoverPlugin extends Plugin {
     settings: BibleHoverSettings;
 
     async onload() {
-        console.log('Loading Bible Hover Plugin');
-
         await this.loadSettings();
         this.applySettings();
 
@@ -150,7 +148,7 @@ export default class BibleHoverPlugin extends Plugin {
                 this.currentVersion = Array.from(this.bibleParsers.keys())[0];
             }
 
-            console.log(`Current version: ${this.currentVersion}`);
+            // console.log(`Current version: ${this.currentVersion}`);
         } catch (e) {
             console.error('Error loading bible data', e);
         }
@@ -181,7 +179,6 @@ export default class BibleHoverPlugin extends Plugin {
         const parser = this.getCurrentParser();
         if (!parser) return;
         const text = parser.getVerses(ref);
-        if (!text) return;
 
         if (this.hoverPopover) this.hoverPopover.remove();
 
@@ -205,6 +202,12 @@ export default class BibleHoverPlugin extends Plugin {
         this.hoverPopover.style.borderRadius = '6px';
         this.hoverPopover.style.maxHeight = '300px';
         this.hoverPopover.style.overflowY = 'auto';
+
+        const renderContent = async (textToRender: string | null, contentDiv: HTMLElement) => {
+            contentDiv.empty();
+            const content = textToRender || 'Not found';
+            await MarkdownRenderer.render(this.app, content, contentDiv, '', this);
+        };
 
         // Add version header if any bible loaded
         if (this.bibleParsers.size > 0) {
@@ -258,19 +261,18 @@ export default class BibleHoverPlugin extends Plugin {
                     const newParser = this.getCurrentParser();
                     if (newParser) {
                         const newText = newParser.getVerses(ref);
-                        if (newText) {
-                            contentDiv.empty();
-                            await MarkdownRenderer.render(this.app, newText, contentDiv, '', this);
-                        }
+                        await renderContent(newText, contentDiv);
                     }
                 });
 
                 setDefaultBtn.addEventListener('click', async () => {
                     this.settings.defaultBible = this.currentVersion;
                     await this.saveSettings();
-                    setDefaultBtn.style.display = 'none';
                     setDefaultBtn.setText('Saved!');
-                    setTimeout(() => setDefaultBtn.setText('Set Default'), 1000);
+                    setTimeout(() => {
+                        setDefaultBtn.setText('Set Default');
+                        setDefaultBtn.style.display = 'none';
+                    }, 1000);
                 });
             } else {
                 // Just show version name as text if only one
@@ -280,7 +282,7 @@ export default class BibleHoverPlugin extends Plugin {
 
         const contentDiv = this.hoverPopover.createDiv({ cls: 'bible-popover-content' });
         contentDiv.style.padding = '8px';
-        await MarkdownRenderer.render(this.app, text, contentDiv, '', this);
+        await renderContent(text, contentDiv);
 
         // Keep popover visible when mouse is over it
         this.hoverPopover.addEventListener('mouseenter', () => {
