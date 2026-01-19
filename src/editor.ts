@@ -35,7 +35,7 @@ export const bibleObserver = ViewPlugin.fromClass(
                 // Reset regex
                 BIBLE_REF_REGEX.lastIndex = 0;
 
-                while ((match = BIBLE_REF_REGEX.exec(text)) !== null) {
+                while ((match = BIBLE_REF_REGEX.exec(text)) !== null && match[1]) {
                     const start = from + match.index + 2; // Skip [[
                     const end = start + match[1].length;  // Length of inner content
 

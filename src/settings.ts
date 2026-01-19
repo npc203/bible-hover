@@ -115,7 +115,7 @@ export class BibleHoverSettingTab extends PluginSettingTab {
 				void (async () => {
 					this.plugin.settings.bibles.splice(index, 1);
 					if (this.plugin.settings.defaultBible === bible.name) {
-						this.plugin.settings.defaultBible = this.plugin.settings.bibles.length > 0 ? this.plugin.settings.bibles[0].name : '';
+						this.plugin.settings.defaultBible = this.plugin.settings.bibles[0]?.name ?? '';
 					}
 					await this.plugin.saveSettings();
 					await this.plugin.loadBibleData();
