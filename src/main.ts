@@ -1,6 +1,6 @@
 import { Plugin, MarkdownRenderer, TFile } from 'obsidian';
 import { BibleParser } from './parser';
-import {DEFAULT_SETTINGS, BibleHoverSettings, BibleHoverSettingTab} from "./settings";
+import { DEFAULT_SETTINGS, BibleHoverSettings, BibleHoverSettingTab } from "./settings";
 import { bibleObserver } from './editor';
 import { BOOK_ALIASES } from './bookAliases';
 
@@ -9,7 +9,7 @@ export default class BibleHoverPlugin extends Plugin {
     validBookNames: Set<string> = new Set();
     currentVersion: string = '';
     hoverPopover: HTMLElement | null = null;
-    hideTimeout: NodeJS.Timeout | null = null;
+    hideTimeout: number | null = null;
     settings: BibleHoverSettings;
 
     async onload() {
@@ -30,7 +30,7 @@ export default class BibleHoverPlugin extends Plugin {
         // Command to re-index all bibles
         this.addCommand({
             id: 'reindex-bibles',
-            name: 'Re-index all Bibles',
+            name: 'Re-index all bibles',
             callback: async () => {
                 await this.loadBibleData();
             }
@@ -42,7 +42,7 @@ export default class BibleHoverPlugin extends Plugin {
             if (linkEl) {
                 const ref = this.getRefFromLink(linkEl);
                 if (ref) {
-                    this.onLinkHover(evt, ref);
+                    void this.onLinkHover(evt, ref);
                     return;
                 }
             }
@@ -56,7 +56,7 @@ export default class BibleHoverPlugin extends Plugin {
                 const ref = this.getRefFromLink(linkEl);
                 if (ref) {
                     const touch = evt.touches[0];
-                    this.onLinkHover(touch as unknown, ref);
+                    void this.onLinkHover(touch as unknown as MouseEvent, ref);
                     return;
                 }
             }
@@ -102,14 +102,14 @@ export default class BibleHoverPlugin extends Plugin {
         });
     }
 
-    async onunload() {
+    onunload() {
         if (this.hoverPopover) {
             this.hoverPopover.remove();
         }
     }
 
     async loadSettings() {
-        const loadedData = await this.loadData();
+        const loadedData = await this.loadData() as Partial<BibleHoverSettings>;
         this.settings = Object.assign({}, DEFAULT_SETTINGS, loadedData);
     }
 
@@ -140,7 +140,7 @@ export default class BibleHoverPlugin extends Plugin {
             this.bibleParsers.clear();
 
             if (this.settings.bibles.length === 0) {
-                console.log('No Bibles configured');
+                console.error('No Bibles configured');
                 return;
             }
 
@@ -152,7 +152,7 @@ export default class BibleHoverPlugin extends Plugin {
                 if (!path.endsWith('.md')) path += '.md';
 
                 if (!(await adapter.exists(path))) {
-                    console.log(`Bible file not found at ${path}`);
+                    console.error(`Bible file not found at ${path}`);
                     continue;
                 }
 
@@ -165,8 +165,8 @@ export default class BibleHoverPlugin extends Plugin {
                 this.currentVersion = this.settings.defaultBible;
             } else if (this.bibleParsers.size > 0) {
                 const firstVersion = Array.from(this.bibleParsers.keys())[0];
-                if(firstVersion)
-                this.currentVersion = firstVersion;
+                if (firstVersion)
+                    this.currentVersion = firstVersion;
             }
         } catch (e) {
             console.error('Error loading bible data', e);
@@ -174,20 +174,8 @@ export default class BibleHoverPlugin extends Plugin {
     }
 
     applySettings() {
-        // Create or update a style element to inject CSS variables
-        // This is to change link colors dynamically
-        let styleEl = document.getElementById('bible-hover-styles');
-        if (!styleEl) {
-            styleEl = document.createElement('style');
-            styleEl.id = 'bible-hover-styles';
-            document.head.appendChild(styleEl);
-        }
-
-        styleEl.textContent = `
-            :root {
-                --bible-link-color: ${this.settings.linkColor};
-            }
-        `;
+        // Use setCssProps on the body to change link colors dynamically
+        document.body.style.setProperty('--bible-link-color', this.settings.linkColor);
     }
 
     getCurrentParser(): BibleParser | null {
@@ -203,7 +191,7 @@ export default class BibleHoverPlugin extends Plugin {
         let ref = linkEl.getAttribute('data-href');
         if (!ref) ref = linkEl.textContent;
         if (!ref) return null;
-        
+
         ref = ref.replace(/\[\[|\]\]/g, '');
         return this.isBibleRef(ref) ? ref : null;
     }
@@ -230,7 +218,7 @@ export default class BibleHoverPlugin extends Plugin {
 
         // Position closer to the link
         let top = event.clientY + 5;
-        let left = event.clientX + 5; 
+        let left = event.clientX + 5;
 
         if (left + 300 > window.innerWidth) left = window.innerWidth - 320;
         if (top + 300 > window.innerHeight) top = event.clientY - 310;
@@ -261,35 +249,38 @@ export default class BibleHoverPlugin extends Plugin {
                 });
 
                 const setDefaultBtn = header.createEl('button', {
-                    text: 'Set Default',
+                    text: 'Set default',
                     cls: 'mod-cta'
                 });
-                setDefaultBtn.style.fontSize = '0.75em';
-                setDefaultBtn.style.padding = '2px 8px';
-                setDefaultBtn.style.height = 'auto';
+                setDefaultBtn.addClass('bible-popover-set-default-btn');
+                setDefaultBtn.setAttr('style', `display: ${this.currentVersion === this.settings.defaultBible ? 'none' : 'block'}`);
 
-                // Only show if it's not already default
-                setDefaultBtn.style.display = this.currentVersion === this.settings.defaultBible ? 'none' : 'block';
+                select.addEventListener('change', () => {
+                    void (async () => {
+                        this.currentVersion = select.value;
+                        const setDefaultBtnValue = header.querySelector('.bible-popover-set-default-btn') as HTMLElement;
+                        if (setDefaultBtnValue) {
+                            setDefaultBtnValue.setAttr('style', `display: ${this.currentVersion === this.settings.defaultBible ? 'none' : 'block'}`);
+                        }
 
-                select.addEventListener('change', async () => {
-                    this.currentVersion = select.value;
-                    setDefaultBtn.style.display = this.currentVersion === this.settings.defaultBible ? 'none' : 'block';
-
-                    const newParser = this.getCurrentParser();
-                    if (newParser) {
-                        const newText = newParser.getVerses(ref);
-                        await renderContent(newText, contentDiv);
-                    }
+                        const newParser = this.getCurrentParser();
+                        if (newParser) {
+                            const newText = newParser.getVerses(ref);
+                            await renderContent(newText, contentDiv);
+                        }
+                    })();
                 });
 
-                setDefaultBtn.addEventListener('click', async () => {
-                    this.settings.defaultBible = this.currentVersion;
-                    await this.saveSettings();
-                    setDefaultBtn.setText('Saved!');
-                    setTimeout(() => {
-                        setDefaultBtn.setText('Set Default');
-                        setDefaultBtn.style.display = 'none';
-                    }, 1000);
+                setDefaultBtn.addEventListener('click', () => {
+                    void (async () => {
+                        this.settings.defaultBible = this.currentVersion;
+                        await this.saveSettings();
+                        setDefaultBtn.setText('Saved!');
+                        setTimeout(() => {
+                            setDefaultBtn.setText('Set default');
+                            setDefaultBtn.setAttr('style', 'display: none');
+                        }, 1000);
+                    })();
                 });
             } else {
                 // Just show version name as text if only one
@@ -330,13 +321,13 @@ export default class BibleHoverPlugin extends Plugin {
         }
 
         // Add delay before hiding (300ms)
-        this.hideTimeout = setTimeout(() => {
+        this.hideTimeout = window.setTimeout(() => {
             // Don't remove if mouse is over the popover
             if (this.hoverPopover && this.hoverPopover.dataset.hovering !== 'true') {
                 this.hoverPopover.remove();
                 this.hoverPopover = null;
             }
-        }, 300);
+        }, 300) as unknown as number;
     }
 
     private async navigateToVerse(evt: MouseEvent | TouchEvent, ref: string): Promise<void> {

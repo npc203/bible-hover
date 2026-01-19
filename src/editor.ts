@@ -1,11 +1,12 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 import {
     Decoration,
     DecorationSet,
     EditorView,
     ViewPlugin,
     ViewUpdate,
-    WidgetType,
 } from "@codemirror/view";
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { RangeSetBuilder } from "@codemirror/state";
 
 // Simple Regex for "Gen 1:1" or "[[Gen 1:1]]"
