@@ -6,10 +6,11 @@ import {
     ViewUpdate,
 } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
+import { isValidBook } from "bookAliases";
 
 // Simple Regex for "Gen 1:1" or "[[Gen 1:1]]"
 // We want to highlight the text inside [[ ]] if it matches the pattern.
-const BIBLE_REF_REGEX = /\[\[(.+? \d+:\d+(?:-\d+)?)\]\]/gi;
+const BIBLE_REF_REGEX = /\[\[((.+?) \d+:\d+(?:-\d+)?)\]\]/gi;
 
 export const bibleObserver = ViewPlugin.fromClass(
     class {
@@ -35,18 +36,21 @@ export const bibleObserver = ViewPlugin.fromClass(
                 // Reset regex
                 BIBLE_REF_REGEX.lastIndex = 0;
 
-                while ((match = BIBLE_REF_REGEX.exec(text)) !== null && match[1]) {
-                    const start = from + match.index + 2; // Skip [[
-                    const end = start + match[1].length;  // Length of inner content
+                while ((match = BIBLE_REF_REGEX.exec(text)) !== null && match[1] && match[2]) {
+                    if(isValidBook(match[2]))
+                        {
+                        const start = from + match.index + 2; // Skip [[
+                        const end = start + match[1].length;  // Length of inner content
 
-                    // Add mark decoration to the inner part
-                    builder.add(
-                        start,
-                        end,
-                        Decoration.mark({
-                            class: "bible-link"
-                        })
-                    );
+                        // Add mark decoration to the inner part
+                        builder.add(
+                            start,
+                            end,
+                            Decoration.mark({
+                                class: "bible-link"
+                            })
+                        );
+                    }
                 }
             }
 

@@ -2,19 +2,16 @@ import { Plugin, MarkdownRenderer, TFile } from 'obsidian';
 import { BibleParser } from './parser';
 import { DEFAULT_SETTINGS, BibleHoverSettings, BibleHoverSettingTab } from "./settings";
 import { bibleObserver } from './editor';
-import { BOOK_ALIASES } from './bookAliases';
+import { isBibleRef } from './bookAliases';
 
 export default class BibleHoverPlugin extends Plugin {
     bibleParsers: Map<string, BibleParser> = new Map();
-    validBookNames: Set<string> = new Set();
     currentVersion: string = '';
     hoverPopover: HTMLElement | null = null;
     hideTimeout: number | null = null;
     settings: BibleHoverSettings;
 
     async onload() {
-        // Preprocess book aliases into a flattened set for fast lookup
-        this.initializeBookNames();
 
         await this.loadSettings();
         this.applySettings();
@@ -95,7 +92,7 @@ export default class BibleHoverPlugin extends Plugin {
                 const linkEl = link as HTMLAnchorElement;
                 const href = linkEl.getAttribute('data-href');
 
-                if (href && this.isBibleRef(href)) {
+                if (href && isBibleRef(href)) {
                     linkEl.addClass('bible-link');
                 }
             });
@@ -115,23 +112,6 @@ export default class BibleHoverPlugin extends Plugin {
 
     async saveSettings() {
         await this.saveData(this.settings);
-    }
-
-    isBibleRef(text: string): boolean {
-        // Match pattern: "Book Name chapter:verse"
-        const match = text.match(/^(.+?)\s+(\d+):(\d+)/);
-        if (!match || !match[1]) return false;
-
-        const bookName = match[1].toLowerCase();
-        return this.validBookNames.has(bookName);
-    }
-
-    private initializeBookNames(): void {
-        // Flatten all book aliases and full names into a Set for O(1) lookup
-        BOOK_ALIASES.forEach((fullName, alias) => {
-            this.validBookNames.add(alias.toLowerCase());
-            this.validBookNames.add(fullName.toLowerCase());
-        });
     }
 
     async loadBibleData() {
@@ -188,16 +168,11 @@ export default class BibleHoverPlugin extends Plugin {
     }
 
     private getRefFromLink(linkEl: HTMLElement): string | null {
-        let ref = linkEl.getAttribute('data-href');
-        if (!ref) ref = linkEl.textContent;
+        let ref = linkEl.getAttribute('data-href') ||  linkEl.textContent;
         if (!ref) return null;
 
         ref = ref.replace(/\[\[|\]\]/g, '');
-        return this.isBibleRef(ref) ? ref : null;
-    }
-
-    private handleLinkFound(event: MouseEvent | TouchEvent, ref: string, callback: (ref: string) => void): void {
-        callback(ref);
+        return isBibleRef(ref) ? ref : null;
     }
 
     private handleLinkNotFound(event: MouseEvent | TouchEvent): void {
