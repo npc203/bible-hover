@@ -2,15 +2,20 @@ import { Plugin, MarkdownRenderer, TFile } from 'obsidian';
 import { BibleParser } from './parser';
 import {DEFAULT_SETTINGS, BibleHoverSettings, BibleHoverSettingTab} from "./settings";
 import { bibleObserver } from './editor';
+import { BOOK_ALIASES } from './bookAliases';
 
 export default class BibleHoverPlugin extends Plugin {
     bibleParsers: Map<string, BibleParser> = new Map();
+    validBookNames: Set<string> = new Set();
     currentVersion: string = '';
     hoverPopover: HTMLElement | null = null;
     hideTimeout: NodeJS.Timeout | null = null;
     settings: BibleHoverSettings;
 
     async onload() {
+        // Preprocess book aliases into a flattened set for fast lookup
+        this.initializeBookNames();
+
         await this.loadSettings();
         this.applySettings();
 
@@ -22,64 +27,66 @@ export default class BibleHoverPlugin extends Plugin {
 
         this.registerEditorExtension(bibleObserver);
 
+        // Command to re-index all bibles
+        this.addCommand({
+            id: 'reindex-bibles',
+            name: 'Re-index all Bibles',
+            callback: async () => {
+                await this.loadBibleData();
+            }
+        });
+
         // Global Event Listener for Hover
         this.registerDomEvent(document, 'mouseover', (evt: MouseEvent) => {
-            const target = evt.target as HTMLElement;
-            const linkEl = target.matches('.bible-link') ? target : target.closest('.bible-link');
-
+            const linkEl = this.getLinkElement(evt.target as HTMLElement);
             if (linkEl) {
-                let ref = linkEl.getAttribute('data-href');
-                if (!ref) ref = linkEl.textContent;
-
+                const ref = this.getRefFromLink(linkEl);
                 if (ref) {
-                    ref = ref.replace(/\[\[|\]\]/g, '');
-                    if (this.isBibleRef(ref)) {
-                        this.onLinkHover(evt, ref);
-                        return;
-                    }
-                }
-            } else {
-                if (this.hoverPopover && !target.closest('.bible-hover-popover')) {
-                    this.onLinkLeave(evt);
+                    this.onLinkHover(evt, ref);
+                    return;
                 }
             }
+            this.handleLinkNotFound(evt);
+        });
+
+        // Touch support for hover popover
+        this.registerDomEvent(document, 'touchstart', (evt: TouchEvent) => {
+            const linkEl = this.getLinkElement(evt.target as HTMLElement);
+            if (linkEl) {
+                const ref = this.getRefFromLink(linkEl);
+                if (ref) {
+                    const touch = evt.touches[0];
+                    this.onLinkHover(touch as unknown, ref);
+                    return;
+                }
+            }
+            this.handleLinkNotFound(evt);
         });
 
         // Global Event Listener for Click (Navigation)
         this.registerDomEvent(document, 'click', async (evt: MouseEvent) => {
-            const target = evt.target as HTMLElement;
-            const linkEl = target.matches('.bible-link') ? target : target.closest('.bible-link');
-
+            const linkEl = this.getLinkElement(evt.target as HTMLElement);
             if (linkEl) {
-                let ref = linkEl.getAttribute('data-href');
-                if (!ref) ref = linkEl.textContent;
-
+                const ref = this.getRefFromLink(linkEl);
                 if (ref) {
-                    ref = ref.replace(/\[\[|\]\]/g, '');
-                    const parser = this.getCurrentParser();
-                    if (this.isBibleRef(ref) && parser) {
-                        evt.preventDefault();
-                        evt.stopPropagation();
-
-                        const line = parser.getVerseLine(ref);
-                        if (line !== null) {
-                            // Get path for current version
-                            const currentBible = this.settings.bibles.find(b => b.name === this.currentVersion);
-                            if (!currentBible) return;
-
-                            const path = currentBible.path;
-                            const file = this.app.vault.getAbstractFileByPath(path);
-
-                            if (file instanceof TFile) {
-                                // Check for modifiers (Ctrl/Cmd)
-                                const newLeaf = evt.ctrlKey || evt.metaKey;
-                                const leaf = this.app.workspace.getLeaf(newLeaf);
-                                await leaf.openFile(file, { eState: { line: line } });
-                            }
-                        }
-                    }
+                    await this.navigateToVerse(evt, ref);
+                    return;
                 }
             }
+            this.handleLinkNotFound(evt);
+        }, { capture: true });
+
+        // Touch support for navigation (tap on link)
+        this.registerDomEvent(document, 'touchend', async (evt: TouchEvent) => {
+            const linkEl = this.getLinkElement(evt.target as HTMLElement);
+            if (linkEl) {
+                const ref = this.getRefFromLink(linkEl);
+                if (ref) {
+                    await this.navigateToVerse(evt, ref);
+                    return;
+                }
+            }
+            this.handleLinkNotFound(evt);
         }, { capture: true });
 
         this.registerMarkdownPostProcessor((element, context) => {
@@ -111,7 +118,20 @@ export default class BibleHoverPlugin extends Plugin {
     }
 
     isBibleRef(text: string): boolean {
-        return /.+ \d+:\d+/.test(text); // Regex is already loose, but let's ensure it handles case if we add specific book checks later. Current check doesn't care about case.
+        // Match pattern: "Book Name chapter:verse"
+        const match = text.match(/^(.+?)\s+(\d+):(\d+)/);
+        if (!match || !match[1]) return false;
+
+        const bookName = match[1].toLowerCase();
+        return this.validBookNames.has(bookName);
+    }
+
+    private initializeBookNames(): void {
+        // Flatten all book aliases and full names into a Set for O(1) lookup
+        BOOK_ALIASES.forEach((fullName, alias) => {
+            this.validBookNames.add(alias.toLowerCase());
+            this.validBookNames.add(fullName.toLowerCase());
+        });
     }
 
     async loadBibleData() {
@@ -138,17 +158,16 @@ export default class BibleHoverPlugin extends Plugin {
 
                 const content = await adapter.read(path);
                 this.bibleParsers.set(bible.name, new BibleParser(content));
-                // console.log(`Bible data loaded: ${bible.name} from ${path}`);
             }
 
             // Set current version to default or first available
             if (this.settings.defaultBible && this.bibleParsers.has(this.settings.defaultBible)) {
                 this.currentVersion = this.settings.defaultBible;
             } else if (this.bibleParsers.size > 0) {
-                this.currentVersion = Array.from(this.bibleParsers.keys())[0];
+                const firstVersion = Array.from(this.bibleParsers.keys())[0];
+                if(firstVersion)
+                this.currentVersion = firstVersion;
             }
-
-            // console.log(`Current version: ${this.currentVersion}`);
         } catch (e) {
             console.error('Error loading bible data', e);
         }
@@ -156,6 +175,7 @@ export default class BibleHoverPlugin extends Plugin {
 
     applySettings() {
         // Create or update a style element to inject CSS variables
+        // This is to change link colors dynamically
         let styleEl = document.getElementById('bible-hover-styles');
         if (!styleEl) {
             styleEl = document.createElement('style');
@@ -175,6 +195,29 @@ export default class BibleHoverPlugin extends Plugin {
         return this.bibleParsers.get(this.currentVersion) || null;
     }
 
+    private getLinkElement(target: HTMLElement): HTMLElement | null {
+        return target.matches('.bible-link') ? target : target.closest('.bible-link');
+    }
+
+    private getRefFromLink(linkEl: HTMLElement): string | null {
+        let ref = linkEl.getAttribute('data-href');
+        if (!ref) ref = linkEl.textContent;
+        if (!ref) return null;
+        
+        ref = ref.replace(/\[\[|\]\]/g, '');
+        return this.isBibleRef(ref) ? ref : null;
+    }
+
+    private handleLinkFound(event: MouseEvent | TouchEvent, ref: string, callback: (ref: string) => void): void {
+        callback(ref);
+    }
+
+    private handleLinkNotFound(event: MouseEvent | TouchEvent): void {
+        if (this.hoverPopover && !(event.target as HTMLElement).closest('.bible-hover-popover')) {
+            this.onLinkLeave(event as MouseEvent);
+        }
+    }
+
     async onLinkHover(event: MouseEvent, ref: string) {
         const parser = this.getCurrentParser();
         if (!parser) return;
@@ -184,24 +227,16 @@ export default class BibleHoverPlugin extends Plugin {
 
         this.hoverPopover = document.createElement('div');
         this.hoverPopover.addClass('bible-hover-popover');
-        this.hoverPopover.style.position = 'fixed';
 
         // Position closer to the link
-        let top = event.clientY + 5;  // Reduced from 15 to 5
-        let left = event.clientX + 5; // Added small offset
+        let top = event.clientY + 5;
+        let left = event.clientX + 5; 
 
         if (left + 300 > window.innerWidth) left = window.innerWidth - 320;
         if (top + 300 > window.innerHeight) top = event.clientY - 310;
 
         this.hoverPopover.style.top = top + 'px';
         this.hoverPopover.style.left = left + 'px';
-        this.hoverPopover.style.zIndex = '9999';
-        this.hoverPopover.style.backgroundColor = 'var(--background-primary)';
-        this.hoverPopover.style.border = '1px solid var(--background-modifier-border)';
-        this.hoverPopover.style.boxShadow = '0 4px 10px rgba(0,0,0,0.5)';
-        this.hoverPopover.style.borderRadius = '6px';
-        this.hoverPopover.style.maxHeight = '300px';
-        this.hoverPopover.style.overflowY = 'auto';
 
         const renderContent = async (textToRender: string | null, contentDiv: HTMLElement) => {
             contentDiv.empty();
@@ -212,31 +247,13 @@ export default class BibleHoverPlugin extends Plugin {
         // Add version header if any bible loaded
         if (this.bibleParsers.size > 0) {
             const header = this.hoverPopover.createDiv({ cls: 'bible-popover-header' });
-            header.style.display = 'flex';
-            header.style.justifyContent = 'space-between';
-            header.style.alignItems = 'center';
-            header.style.padding = '6px 12px';
-            header.style.borderBottom = '1px solid var(--background-modifier-border)';
-            header.style.backgroundColor = 'var(--background-secondary)';
-            header.style.fontSize = '0.85em';
-            header.style.gap = '8px';
-            header.style.flexShrink = '0'; // Ensure header doesn't shrink
 
-            const leftSide = header.createDiv();
-            leftSide.style.display = 'flex';
-            leftSide.style.alignItems = 'center';
-            leftSide.style.gap = '6px';
+            const leftSide = header.createDiv({ cls: 'bible-popover-left-side' });
             leftSide.createSpan({ text: 'Version: ' });
 
             if (this.bibleParsers.size > 1) {
                 const select = leftSide.createEl('select');
-                select.style.fontSize = 'inherit';
-                select.style.padding = '2px 4px';
-                select.style.backgroundColor = 'var(--background-primary)';
-                select.style.color = 'var(--text-normal)';
-                select.style.border = '1px solid var(--background-modifier-border)';
-                select.style.borderRadius = '4px';
-                select.style.cursor = 'pointer';
+                select.addClass('bible-popover-select');
 
                 Array.from(this.bibleParsers.keys()).forEach(version => {
                     const option = select.createEl('option', { text: version, value: version });
@@ -281,7 +298,6 @@ export default class BibleHoverPlugin extends Plugin {
         }
 
         const contentDiv = this.hoverPopover.createDiv({ cls: 'bible-popover-content' });
-        contentDiv.style.padding = '8px';
         await renderContent(text, contentDiv);
 
         // Keep popover visible when mouse is over it
@@ -321,5 +337,31 @@ export default class BibleHoverPlugin extends Plugin {
                 this.hoverPopover = null;
             }
         }, 300);
+    }
+
+    private async navigateToVerse(evt: MouseEvent | TouchEvent, ref: string): Promise<void> {
+        const parser = this.getCurrentParser();
+        if (!parser) return;
+
+        evt.preventDefault();
+        evt.stopPropagation();
+
+        const line = parser.getVerseLine(ref);
+        if (line === null) return;
+
+        // Get path for current version
+        const currentBible = this.settings.bibles.find(b => b.name === this.currentVersion);
+        if (!currentBible) return;
+
+        const path = currentBible.path;
+        const file = this.app.vault.getAbstractFileByPath(path);
+
+        if (file instanceof TFile) {
+            // Check for modifiers (Ctrl/Cmd) on mouse events
+            const isMouseEvent = evt instanceof MouseEvent;
+            const newLeaf = isMouseEvent && (evt.ctrlKey || evt.metaKey);
+            const leaf = this.app.workspace.getLeaf(newLeaf);
+            await leaf.openFile(file, { eState: { line: line } });
+        }
     }
 }

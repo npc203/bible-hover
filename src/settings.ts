@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting, SuggestModal, Modal } from 'obsidian';
 import type BibleHoverPlugin from './main';
-import { BibleParser } from './parser';
+import { BOOK_ALIASES } from './bookAliases';
 
 interface BibleVersion {
     name: string;  // e.g., "NIV", "ESV", "KJV"
@@ -32,7 +32,7 @@ export class BibleHoverSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Bible Hover Settings' });
+		;
 
 		new Setting(containerEl)
 			.setName('Bible Versions')
@@ -49,6 +49,19 @@ export class BibleHoverSettingTab extends PluginSettingTab {
 						await this.plugin.loadBibleData();
 						this.display();
 					}).open();
+				}))
+			.addButton(button => button
+				.setButtonText('Re-index All')
+				.setWarning()
+				.onClick(async () => {
+					await this.plugin.loadBibleData();
+					// Show feedback
+					const btn = button.buttonEl;
+					const originalText = btn.textContent;
+					btn.textContent = 'Indexed!';
+					setTimeout(() => {
+						btn.textContent = originalText;
+					}, 2000);
 				}));
 
 		// Default Version Selection
@@ -81,7 +94,7 @@ export class BibleHoverSettingTab extends PluginSettingTab {
 				}));
 
 		// List of configured versions
-		containerEl.createEl('h3', { text: 'Configured Bibles' });
+		new Setting(containerEl).setName("Configured Bibles").setHeading();
 		const biblesContainer = containerEl.createDiv({ cls: 'bibles-list-container' });
 
 		this.plugin.settings.bibles.forEach((bible, index) => {
@@ -110,7 +123,7 @@ export class BibleHoverSettingTab extends PluginSettingTab {
 		});
 
 		// Add a note showing supported book names
-		containerEl.createEl('h3', { text: 'Supported Book Names & Aliases' });
+		new Setting(containerEl).setName("Supported Book Names & Aliases").setHeading();
 		const noteEl = containerEl.createEl('div', { cls: 'setting-item-description' });
 		noteEl.style.marginTop = '10px';
 		noteEl.style.fontSize = '0.9em';
@@ -119,7 +132,7 @@ export class BibleHoverSettingTab extends PluginSettingTab {
 		// Generate book list dynamically from parser aliases
 		const bookMap = new Map<string, string[]>();
 
-		BibleParser.aliases.forEach((bookName: string, alias: string) => {
+		BOOK_ALIASES.forEach((bookName: string, alias: string) => {
 			if (!bookMap.has(bookName)) {
 				bookMap.set(bookName, []);
 			}
@@ -129,7 +142,7 @@ export class BibleHoverSettingTab extends PluginSettingTab {
 		});
 
 		const bookList: string[] = [];
-		const uniqueBooks = Array.from(new Set(BibleParser.aliases.values()));
+		const uniqueBooks = Array.from(new Set(BOOK_ALIASES.values()));
 
 		uniqueBooks.forEach((bookName: string) => {
 			const aliases = bookMap.get(bookName) || [];
@@ -192,7 +205,7 @@ class AddBibleModal extends Modal {
                 .setPlaceholder('NIV')
                 .onChange(value => this.name = value));
 
-        const pathSetting = new Setting(contentEl)
+        new Setting(contentEl)
             .setName('File Path')
             .setDesc('Path to the markdown file')
             .addText(text => {

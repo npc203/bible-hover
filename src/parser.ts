@@ -1,3 +1,5 @@
+import { BOOK_ALIASES } from './bookAliases';
+
 export interface BibleVerse {
     verse: number;
     text: string;
@@ -16,80 +18,6 @@ export interface BibleBook {
 
 export class BibleParser {
     books: Map<string, BibleBook> = new Map();
-
-    // Static alias map for common abbreviations
-    static aliases: Map<string, string> = new Map([
-        ['gen', 'Genesis'],
-        ['exo', 'Exodus'],
-        ['ex', 'Exodus'],
-        ['lev', 'Leviticus'],
-        ['num', 'Numbers'],
-        ['deu', 'Deuteronomy'],
-        ['josh', 'Joshua'],
-        ['judg', 'Judges'],
-        ['ruth', 'Ruth'],
-        ['1 sam', '1 Samuel'],
-        ['2 sam', '2 Samuel'],
-        ['1 ki', '1 Kings'],
-        ['2 ki', '2 Kings'],
-        ['1 chron', '1 Chronicles'],
-        ['2 chron', '2 Chronicles'],
-        ['ezra', 'Ezra'],
-        ['neh', 'Nehemiah'],
-        ['est', 'Esther'],
-        ['job', 'Job'],
-        ['psa', 'Psalm'],
-        ['psalms', 'Psalm'],
-        ['pro', 'Proverbs'],
-        ['prov', 'Proverbs'],
-        ['ecc', 'Ecclesiastes'],
-        ['song', 'Song of Solomon'],
-        ['isa', 'Isaiah'],
-        ['jer', 'Jeremiah'],
-        ['lam', 'Lamentations'],
-        ['eze', 'Ezekiel'],
-        ['dan', 'Daniel'],
-        ['hos', 'Hosea'],
-        ['joel', 'Joel'],
-        ['amos', 'Amos'],
-        ['obad', 'Obadiah'],
-        ['jon', 'Jonah'],
-        ['mic', 'Micah'],
-        ['nah', 'Nahum'],
-        ['hab', 'Habakkuk'],
-        ['zeph', 'Zephaniah'],
-        ['hag', 'Haggai'],
-        ['zec', 'Zechariah'], // Corrected abbreviation
-        ['zech', 'Zechariah'],
-        ['mal', 'Malachi'],
-        ['matt', 'Matthew'],
-        ['mark', 'Mark'],
-        ['luke', 'Luke'],
-        ['john', 'John'],
-        ['acts', 'Acts'],
-        ['rom', 'Romans'],
-        ['1 cor', '1 Corinthians'],
-        ['2 cor', '2 Corinthians'],
-        ['gal', 'Galatians'],
-        ['eph', 'Ephesians'],
-        ['phil', 'Philippians'],
-        ['col', 'Colossians'],
-        ['1 thess', '1 Thessalonians'],
-        ['2 thess', '2 Thessalonians'],
-        ['1 tim', '1 Timothy'],
-        ['2 tim', '2 Timothy'],
-        ['titus', 'Titus'],
-        ['philem', 'Philemon'],
-        ['heb', 'Hebrews'],
-        ['james', 'James'],
-        ['1 pet', '1 Peter'],
-        ['2 pet', '2 Peter'],
-        ['1 john', '1 John'],
-        ['2 john', '2 John'],
-        ['3 john', '3 John'],
-        ['jude', 'Jude'],
-        ['rev', 'Revelation']
-    ]);
 
     constructor(markdownContent: string) {
         this.parse(markdownContent);
@@ -146,9 +74,9 @@ export class BibleParser {
         let searchKey = bookName.toLowerCase();
 
         // Check alias map
-        if (BibleParser.aliases.has(searchKey)) {
+        if (BOOK_ALIASES.has(searchKey)) {
             // Get proper name, but we store in map by lowercase key of the proper name
-            const properName = BibleParser.aliases.get(searchKey)!;
+            const properName = BOOK_ALIASES.get(searchKey)!;
             searchKey = properName.toLowerCase();
         }
 
@@ -177,8 +105,8 @@ export class BibleParser {
         const { bookName, chapterNum, startVerse } = parts;
 
         let searchKey = bookName.toLowerCase();
-        if (BibleParser.aliases.has(searchKey)) {
-            const properName = BibleParser.aliases.get(searchKey)!;
+        if (BOOK_ALIASES.has(searchKey)) {
+            const properName = BOOK_ALIASES.get(searchKey)!;
             searchKey = properName.toLowerCase();
         }
 
