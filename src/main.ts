@@ -1,4 +1,4 @@
-import { Plugin, MarkdownRenderer, TFile } from 'obsidian';
+import { Plugin, MarkdownRenderer, TFile, Component } from 'obsidian';
 import { BibleParser } from './parser';
 import { DEFAULT_SETTINGS, BibleHoverSettings, BibleHoverSettingTab } from "./settings";
 import { bibleObserver } from './editor';
@@ -10,6 +10,7 @@ export default class BibleHoverPlugin extends Plugin {
     hoverPopover: HTMLElement | null = null;
     hideTimeout: number | null = null;
     settings: BibleHoverSettings;
+    LinkHoverComponent: Component | null
 
     async onload() {
 
@@ -204,7 +205,13 @@ export default class BibleHoverPlugin extends Plugin {
         const renderContent = async (textToRender: string | null, contentDiv: HTMLElement) => {
             contentDiv.empty();
             const content = textToRender || 'Not found';
-            await MarkdownRenderer.render(this.app, content, contentDiv, '', this);
+
+            let componentEl = this.LinkHoverComponent ?? new Component();
+			if (!componentEl) {
+				return;
+			}
+            
+            await MarkdownRenderer.render(this.app, content, contentDiv, '', componentEl);
         };
 
         // Add version header if any bible loaded
