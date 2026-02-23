@@ -8,7 +8,7 @@ The bible internal links are case-insensitive.
 ![Demo](./demo.gif)
 
 The project follows BYOB (Bring Your Own Bible) approach. 
-If you have your bible in Zefania XML format, you can convert to md using [this python program](https://gist.github.com/npc203/565e32a68dcf190976d621b098614486). Else, follow the below format.
+If you have your bible in Zefania XML format, you can convert to md using [this python program](https://gist.github.com/npc203/565e32a68dcf190976d621b098614486) OR [this online tool](https://npc203.github.io/zefania2md/). Else, follow the below format.
 
 ## Setup
 1. Create bible markdowns in the following format.
